@@ -1,27 +1,37 @@
 package primestream
 
-func filter(dst chan<- int, src <-chan int, modulo int) {
-    for n := range src {
-        if n % modulo != 0 {
-            dst <- n
-        }
-    }
+func filter(src <-chan int, modulo int) <-chan int {
+	dst := make(chan int)
+	go func() {
+		for n := range src {
+			if n%modulo != 0 {
+				dst <- n
+			}
+		}
+	}()
+	return dst
 }
 
-func nats(dst chan<- int, start int) {
-    for i := start; ; i++ {
-        dst <- i
-    }
+func nats(start int) <-chan int {
+	dst := make(chan int)
+	go func() {
+		for i := start; ; i++ {
+			dst <- i
+		}
+	}()
+	return dst
 }
 
-func Primes(dst chan<- int) {
-    stream := make(chan int, 1000)
-    go nats(stream, 2)
-    for {
-        next := <-stream
-        dst <- next
-        filtered := make(chan int, 100)
-        go filter(filtered, stream, next)
-        stream = filtered
-    }
+func Primes() <-chan int {
+	dst := make(chan int)
+	stream := nats(2)
+	go func() {
+		for {
+			next := <-stream
+			dst <- next
+			filtered := filter(stream, next)
+			stream = filtered
+		}
+	}()
+	return dst
 }
